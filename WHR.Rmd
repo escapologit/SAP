@@ -1,0 +1,98 @@
+---
+title: "World Happiness Report 2023"
+author: "Mia Gmiza, Gabrijela Perković, Matija Roginić, Erika Tomakić"
+date: "2023-12-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Uvod
+
+*dodati opis naseg zadatka
+
+# Deskriptivna analiza
+
+Učitavanje podataka.
+```{r}
+opis_var = read.csv("datasets/opis_varijabli.csv")
+WHR_22 = read.csv("datasets/WHR_2022.csv")
+WHR_22 = head(WHR_22, -1) # preskacem zadnji red jer je "xx"
+WHR_23 = read.csv("datasets/WHR_2023.csv")
+```
+
+Podatci za 2022. godinu sastoje se od 146 država i dvije varijable. 
+Podatci za 2023. godinu sastoje se od 137 država i 15 varijabli.
+
+```{r}
+cat("Varijable za 2022. godinu:\n")
+names(WHR_22)
+cat("Varijable za 2023. godinu:\n")
+names(WHR_23)
+```
+
+```{r}
+any(is.na(WHR_22))
+cat("U podatcima za 2022. godinu nema nedostajućih vrijednosti.\n")
+any(is.na(WHR_23))
+cat("U podatcima za 2023. godinu ima nedostajućih vrijednosti.\n")
+
+for (col_name in names(WHR_23)) {
+  if (sum(is.na(WHR_23[,col_name])) > 0){
+    cat('Ukupno nedostajućih vrijednosti za varijablu ',col_name, ': ', sum(is.na(WHR_23[,col_name])),'\n')
+  }
+}
+```
+
+# Vizualizacija podataka
+
+Za usporedbu razine sreće u publikaciji iz 2022. i 2023. godine možemo uzeti presjek zajedničkih država. To nas ostavlja s podatcima za 133 države.
+
+```{r pressure, echo=FALSE}
+WHR_22$Country <- gsub("\\*", "", WHR_22$Country)
+presjek_drzava = merge(WHR_23, WHR_22, by.x = "Country.name", by.y = "Country")[c("Country.name", "Happiness.score", "Ladder.score")]
+colnames(presjek_drzava) = c("Country", "2022", "2023")
+# View(presjek_drzava)
+
+library(ggplot2)
+library(reshape2)
+
+df_long <- melt(presjek_drzava, id.var = "Country")
+
+ggplot(df_long, aes(x = Country, y = value, color = variable)) + 
+  geom_line(aes(group = variable)) + 
+  labs(title = "Happiness Score 2022 vs. 2023",
+       y = "Happiness Score", 
+       color = "Year") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 4))
+```
+```{r}
+library(dplyr)
+# grupiranje po regijama radi preglednije vizualizacije
+presjek_drzava = merge(WHR_23, WHR_22, by.x = "Country.name", by.y = "Country")[c("Country.name", "Regional.indicator", "Happiness.score", "Ladder.score")]
+colnames(presjek_drzava) = c("Country", "Region", "2022", "2023")
+grouped_by_regions <- presjek_drzava %>%
+  group_by(Region) %>% 
+  group_split()
+
+num_of_regions = 10
+for (i in 1:10) {
+  region = levels(grouped_by_regions[[i]]$Region)[i]
+  title = paste("Happiness Score 2022 vs. 2023 for", region)
+  data = grouped_by_regions[[i]][c("Country", "2022", "2023")]
+  df_long <- melt(data, id.var = "Country")
+
+  line_plot = ggplot(df_long, aes(x = Country, y = value, color = variable)) + 
+  geom_line(aes(group = variable)) + 
+  geom_point() + 
+  labs(title = title,
+       y = "Happiness Score", 
+       color = "Year") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  print(line_plot)
+}
+
+```
