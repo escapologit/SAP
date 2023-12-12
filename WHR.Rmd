@@ -96,3 +96,17 @@ for (i in 1:10) {
 }
 
 ```
+Sljedeće što možemo napraviti je izračunati korelaciju između varijabli. Možemo izabrati i ispisati korelaciju između svakog para varijabli, ali takav ispis bi bio nepraktičan, a nije nam ni potreban. Stoga ćemo ispisati samo korelaciju svih varijabli s varijablom koja prikazuju indeks sreće u pojedinoj državi.
+
+```{r}
+my_data <- WHR_23[, c(3,4,5,6,7,8,9,10,11,12,13,14,15)]
+matrix = round(cor(my_data, use = "complete.obs"),2)
+corrs <- matrix[, 1]
+names <- colnames(matrix)
+var = names[1]
+
+df <- data.frame(Variable = colnames(matrix)[-1], Correlation = corrs[-1])
+last12 <- tail(df,12)
+cat(sprintf("%s %.2f\n", last12$Variable, last12$Correlation))
+
+```
