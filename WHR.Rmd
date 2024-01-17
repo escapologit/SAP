@@ -46,199 +46,53 @@ for (col_name in names(WHR_23)) {
 }
 ```
 
-# Vizualizacija podataka
+\section{3. Postoje li razlike u kvaliteti zdravstvene skrbi među različitim regijama?}
+Prvo je potrebno provjeriti jesu li podatci normalno distibuirani. To ćemo napraviti analitički i grafički. Analitičku provjeru čini Kolmogorov-Smirnov test. Postavljamo hipoteze: 
+H0: podatci su normalno distribuirani 
+H1: podatci nisu normalno distribuirani
 
-Za usporedbu razine sreće u publikaciji iz 2022. i 2023. godine možemo uzeti presjek zajedničkih država. To nas ostavlja s podatcima za 133 države.
+Prisjetimo se, varijabla "Healthcare.Legatum.Prosperity.Index.Health.Score" ima dvije nedostajuće vrijednosti. Jedan od načina na koji se to može riješiti je da svedemo nedostajuće vrijednosti na srednju vrijednost te varijable za pripadnu regiju. U ovom slučaju ne možemo raditi takvu procjenu zato što pitanje kojim se bavimo ovisi o regijama. Nedostajuće vrijednosti su za Kosovo i Palestinu, države kojima to nije jedini nedostajući podatak. Prema tome, jednostavno ćemo te dvije države ukloniti iz daljnje procjene zdravstvene skrbi.
 
-```{r pressure, echo=FALSE}
-WHR_22$Country <- gsub("\\*", "", WHR_22$Country)
-presjek_drzava = merge(WHR_23, WHR_22, by.x = "Country.name", by.y = "Country")[c("Country.name", "Happiness.score", "Ladder.score")]
-colnames(presjek_drzava) = c("Country", "2022", "2023")
-# View(presjek_drzava)
-
-library(ggplot2)
-library(reshape2)
-
-df_long <- melt(presjek_drzava, id.var = "Country")
-
-ggplot(df_long, aes(x = Country, y = value, color = variable)) + 
-  geom_line(aes(group = variable)) + 
-  labs(title = "Happiness Score 2022 vs. 2023",
-       y = "Happiness Score", 
-       color = "Year") + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 4))
-```
 ```{r}
-library(dplyr)
-# grupiranje po regijama radi preglednije vizualizacije
-presjek_drzava = merge(WHR_23, WHR_22, by.x = "Country.name", by.y = "Country")[c("Country.name", "Regional.indicator", "Happiness.score", "Ladder.score")]
-colnames(presjek_drzava) = c("Country", "Region", "2022", "2023")
-grouped_by_regions <- presjek_drzava %>%
-  group_by(Region) %>% 
-  group_split()
+data3 <- WHR_23[!is.na(WHR_23$Healthcare.Legatum.Prosperity.Index.Health.Score), ]
 
-num_of_regions = 10
-for (i in 1:10) {
-  region = levels(grouped_by_regions[[i]]$Region)[i]
-  title = paste("Happiness Score 2022 vs. 2023 for", region)
-  data = grouped_by_regions[[i]][c("Country", "2022", "2023")]
-  df_long <- melt(data, id.var = "Country")
+regions <- unique(data3$Regional.indicator)
 
-  line_plot = ggplot(df_long, aes(x = Country, y = value, color = variable)) + 
-  geom_line(aes(group = variable)) + 
-  geom_point() + 
-  labs(title = title,
-       y = "Happiness Score", 
-       color = "Year") + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-  print(line_plot)
+ks_results <- list()
+
+# KS test se radi za svaku regiju
+for (region in regions) {
+  data_region <- data3$Healthcare.Legatum.Prosperity.Index.Health.Score[data3$Regional.indicator == region]
+  ks_result <- ks.test(data_region, "pnorm", mean = mean(data_region), sd = sd(data_region))
+  ks_results[[region]] <- ks_result
 }
-
+for (k in names(ks_results)) {
+  cat(k, ":\n")
+  print(ks_results[[k]])
+  cat("\n")
+}
 ```
-Sljedeće što možemo napraviti je izračunati korelaciju između varijabli. Možemo izabrati i ispisati korelaciju između svakog para varijabli, ali takav ispis bi bio nepraktičan, a nije nam ni potreban. Stoga ćemo ispisati samo korelaciju svih varijabli s varijablom koja prikazuju indeks sreće u pojedinoj državi.
+Za svaku regiju dobivamo veliku p-vrijednost, što znači da ne možemo odbaciti hipotezu H0 i zaključujemo da su podatci normalno distribuirani.
+
+P-vrijednost ovisi o veličini uzorka pa ćemo se koristiti i grafičkom provjerom. Veći uzorak rezultira manjom p-vrijednošću.
 
 ```{r}
-my_data <- WHR_23[, c(3,4,5,6,7,8,9,10,11,12,13,14,15)]
-matrix = round(cor(my_data, use = "complete.obs"),2)
-corrs <- matrix[, 1]
-names <- colnames(matrix)
-var = names[1]
+library(ggplot2)
 
-df <- data.frame(Variable = colnames(matrix)[-1], Correlation = corrs[-1])
-last12 <- tail(df,12)
-cat(sprintf("%s %.2f\n", last12$Variable, last12$Correlation))
+#if (!requireNamespace("car", quietly = TRUE)) {
+#  install.packages("car")
+#}
+#library(car)
 
+par(mfrow = c(2, 2))  # 2 rows, 2 columns
+for (region in regions) {
+  data_region <- data3$Healthcare.Legatum.Prosperity.Index.Health.Score[data3$Regional.indicator == region]
+  qqnorm(data_region, main = paste("Q-Q Plot for", region))
+  qqline(data_region, col = "red")
+}
 ```
-\section{2. Možemo li temeljem drugih dostupnih varijabli predvidjeti konzumaciju alkohola po zemljama?}
-
-S obzirom na to da pitanje traži predikciju konzumacije alkohola po zemljama, alat koji ćemo koristiti za to je linearna regresija. Nezavisne varijable će u tom slučaju biti sve one koje nisu vezane za alkohol, a varijabla koju predviđamo će biti konzumacija alkohola za oba spola. Uz to, iz skupa nezavisnih varijabli nećemo koristiti varijable koje pokazuju konzumaciju alkohola posebno za muškarce i žene. Iz toga slijedi da ćemo imati 12 nezavisnih varijabli i jednu nezavisnu. 
-```{r}
-my_data <- WHR_23[, c(3,4,5,6,7,8,9,10,13,14,15)]
-head(my_data$Gini.Coefficient...World.Bank, 10)
-```
-
-Problem na koji nalazimo su nedostajuće vrijednosti u našem skupu podataka. Na primjer, za značajku Gini Coefficient na desetoj poziciji u tablici imamo NA. Ono što ćemo napraviti je zamjena nedostajućih vrijednosti među nezavisnim varijablama prosječnom vrijednošću za tu regiju. Naravno, to nije jedini način na koji se možemo nositi s nedostajućim vrijednostima. Na primjer, možemo u potpunosti izbaciti te zapise, ali u tom slučaju gubimo previše podataka pa nam to nije opcija. Sljedeća opcija bi nam bila zamjena s ukupnim prosjekom, no procijenili smo da je zamjena prosjekom regije ipak točnija. Dakle, sad ćemo napraviti zamjenu nedostajućih podataka.
+Općenito, što su podatci udaljeniji od crvene linije, to su manje normalno distribuirani. U našem slučaju se iz grafičkog prikaza može vidjeti da se uglavnom radi o normalnoj distribuciji, osim nekih stršećih vrijednosti.
 
 ```{r}
-install.packages("dplyr")
-library(dplyr)
-
-my_data <- WHR_23 %>%
-  group_by(Regional.indicator) %>%
-  mutate(
-    Ladder.score = ifelse(is.na(Ladder.score), 
-                  mean(Ladder.score, na.rm = TRUE), Ladder.score),
-    GDP.per.capita = ifelse(is.na(GDP.per.capita), 
-                  mean(GDP.per.capita, na.rm = TRUE), GDP.per.capita),
-    Social.support = ifelse(is.na(Social.support), 
-                  mean(Social.support, na.rm = TRUE), Social.support),
-    Healthy.life.expectancy = ifelse(is.na(Healthy.life.expectancy), mean(Healthy.life.expectancy, na.rm = TRUE), Healthy.life.expectancy),
-    Freedom.to.make.life.choices = ifelse(is.na(Freedom.to.make.life.choices), mean(Freedom.to.make.life.choices, na.rm = TRUE), Freedom.to.make.life.choices),
-    Generosity = ifelse(is.na(Generosity), mean(Generosity, na.rm = TRUE), Generosity),
-    Perceptions.of.corruption = ifelse(is.na(Perceptions.of.corruption), mean(Perceptions.of.corruption, na.rm = TRUE), Perceptions.of.corruption),
-    Crime.rate.Crime.Index = ifelse(is.na(Crime.rate.Crime.Index), mean(Crime.rate.Crime.Index, na.rm = TRUE), Crime.rate.Crime.Index),
-    Healthcare.Legatum.Prosperity.Index.Health.Score = ifelse(is.na(Healthcare.Legatum.Prosperity.Index.Health.Score), mean(Healthcare.Legatum.Prosperity.Index.Health.Score, na.rm = TRUE), Healthcare.Legatum.Prosperity.Index.Health.Score),
-    Gini.Coefficient...World.Bank = ifelse(is.na(Gini.Coefficient...World.Bank), mean(Gini.Coefficient...World.Bank, na.rm = TRUE), Gini.Coefficient...World.Bank)
-  ) %>%
-  ungroup()
-  
-my_data <- my_data[, c(3,4,5,6,7,8,9,10,13,14,15)]
-head(my_data$Gini.Coefficient...World.Bank, 10)
-```
-Sad vidimo da na desetom mjestu za značajku Gini Coefficient više nije NA, nego je ta nedostajuća vrijednost zamijenjena s prosjekom za regiju.
-
-
-
-Nakon što smo napravili zamjenu nedostajućih vrijednosti u nezavisnim varijablama, moramo riješiti taj problem i kod zavisne varijable što je u našem slučaju konzumacija alkohola za oba spola. Iz ranijeg ispisa (kod deskriptivne statistike) vidimo da kod te značajke imamo 6 nedostajućih zapisa. S obzirom na to da je cilj ovdje predvidjeti vrijednost konzumacije alkohola, nema smisla mijenjati te nedostajuće vrijednosti s prosjekom. Ono što ćemo ovdje napraviti je ignorirati tih 6 zapisa (6 država) te provesti linearnu regresiju na preostalim zapisima. To znači da ćemo regresiju raditi na temelju podataka iz 131 države umjesto početnih 137.
-
-```{r}
-new <- my_data[!is.na(my_data$Alcohol.consumption.Both.Sexes..L.year.), ]
-size <- dim(new)
-
-cat("Broj redaka:", size[1], "\n")
-```
-Sljedeći korak je provođenje linearne regresije.
-
-
-```{r}
-if(!require(coefplot)) install.packages("coefplot",repos = "http://cran.us.r-project.org")
-library(coefplot)
-model <- lm(Alcohol.consumption.Both.Sexes..L.year. ~ Ladder.score + GDP.per.capita + Social.support + Healthy.life.expectancy + Freedom.to.make.life.choices + Generosity +
-              Perceptions.of.corruption + Crime.rate.Crime.Index +
-              Healthcare.Legatum.Prosperity.Index.Health.Score +
-              Gini.Coefficient...World.Bank,
-            data = new)
-
-summary(model)
-coefplot(model)
-```
-Sažetak linearnog modela kojeg nam je kao izlaz dao RStudio nam otkriva pojedinosti o koeficijentima uz regresore, statističkoj važnosti pojedinog regresora, te ostalim mjerama po kojima možemo vidjeti koliko se dobro model prilagođava podacima.
-\newline 
-Prvi dio analize će je analiza koeficijenata uz regresore. Vrijednost koeficijenta nam govori o tome koliko promjena u vrijednosti regresora utječe na promjennu izlaza. T vrijednost za svaki regresor opisuje statističku važnost pojedinog regresora. S obzirom na oblik t-distribucije, možemo reći da regresor ima veći statistički značaj ako je njegova vrijednost po iznosu veća. Iz prikazanog sažetka, zaključujemo da regresor Social support ima najveći statistički značaj, te da je statistički značajan i pri p-vrijednosti 0.001, a zatim GDP per capita te Healthcare legatum prosperity index health score koji su statistički značajni pri p-vrijednosti 0.05. \newline 
-Naravno, bitno je gledati i predznak vrijednosti koeficijenta. Iz toga možemo zaključiti da npr. povećanje vrijednosti regresora GDP per capita rezultira povećanjem konzumacije alkohola u zemlji. Suprotno, povećanje vrijednosti regresora Healthcare legatum prosperity index health score rezultira smanjenjem konzumacije alkohola u zemlji.
-\newline
-Vrijednost standardne pogreške reziduala iznosi 3.239 pri 120 stupnjeva slobode. Ta vrijednost nam opisuje standardnu devijaciju reziduala u našem modelu te se izračunava na sljedeći način: $\sqrt{\sum \frac{{(y - \hat{y})^2}}{{df}}}$. U toj formuli, y je prava vrijednost varijable koju predviđamo, $\hat{y}$ je predviđena vrijednost, a df je stupanj slobode koji iznosi broj zapisa u našoj tablici - broj regresora (131-11) = 120. Naravno, cilj je imati što manju vrijednost standardne pogreške reziduala jer to znači da model uspješnije predviđa konzumaciju alkohola uz pomoć ostalih podataka.
-\newline
-Vrijednost $R^2$, odnosno koeficijenta determinacije u našem modelu iznosi 0.4304, a ona predstavlja proporciju varijance zavisne varijable koja se može opisati nezavisnim varijablama (regresorima) u modelu. Cilj je da ona bude što bliže 1 jer će u tom slučaju model biti uspješniji. No, u našem slučaju ta vrijednost nije visoka, štoviše, možemo zaključiti da se manje od pola varijance zavisne varijable može opisati nezavisnim varijablama. Odnosno, ako se sjetimo formule za izračunavanje $R^2$ = 1 - $\frac{SSE}{SST}$, vidimo da omjer SSE i SST ima vrijednost veću od otprilike 0.57, a mi bismo htjeli da bude bliže 1 jer bi tada prilagodba pravcu bila bolja.
-\newline
-Prilagođeni $R^2$ je verzija mjere $R^2$ koja kažnjava velik broj parametara te nam daje točniju procjenu toga koliko je naš model prilagođen pravcu. Ta vrijednost u našem slučaju iznosi 0.383 što je još manje nego vrijednost $R^2$.
-\newline
-Vrijednost F statistike iznosi 9.069, a p-vrijednost je 5.119$e^{-11}$ što je jako mala vrijednost. Interpretacija te vrijednosti je sljedeća: ona testira nultu hipotezu da su svi koeficijenti u modelu jednaki 0, odnosno da niti jedna od nezavisnih varijabli nije korisna za predikciju zavisne varijable. S obzirom da je p-vrijednost iznimno mala, definitvno možemo odbaciti nultu hipotezu te zaključiti da je barem jedna nezavisna varijabla korisna za predikciju.
-```{r}
-
-plot(model, which = 1)
-```
-Ono što želimo ispitati grafom iznad je pretpostavka da reziduali imaju konstantnu varijancu za bilo koji ulaz u model. Da bi donijeli zaključak o toj pretpostavci, moramo pogledati graf iznad. Naime, ako su reziduali otprilike distribuirani u okolini osi apscisa bez nekog jasnog uzorka, možemo zaključiti da je naša pretpostavka točna. Iz grafa vidimo da u našem modelu to je slučaj, reziduali su distribuirani otprilike jednako iznad i ispod osi apscisa te ne možemo utvrditi neki specifičan uzorak među njima. Iz toga slijedi da je naša prvotna pretpostavka bila točna.
-```{r}
-plot(model, which = 2)
-```
-Sljedeća pretpostavka je da su reziduali normalno distribuirani. Da bismo provjerili tu pretpostavku, poslužit ćemo se Q-Q grafom iznad. Za graf vrijedi, ako njegove točke otprilike formiraju pravac, pretpostavka o normalno distribuiranim rezidualima je točna. Q-Q graf za naš model otprilike formira pravac, naravno, moramo napomenuti da taj pravac nije savršen te da postoje točke koje odstupaju od pravca, posebno na krajnje lijevom i krajnje desnom dijelu spektra. No, točke formiraju uzorak koji je dovoljno blizu pravcu, te možemo zaključiti da je naša prvotna pretpostavka bila točna.\\
-
-\textbf{Zaključak: }Iz svih gore navedenih rezultata i analiza moramo donijeti konačni zaključak koji je ujedno i odgovor na pitanje postavljeno u podnaslovu: Možemo li temeljem drugih dostupnih varijabli predvidjeti konzumaciju alkohola po zemljama? Odgovor na pitanje nije jednostavan. Naravno da mi uvijek možemo dati podatke na ulaz modela i dobiti izlaz. No, s obzirom na to da je u našem slučaju vrijednost $R^2$ prilično niska, odgovor je da možemo predvidjeti, ali to predviđanje neće uvijek biti jako blizu stvarnom, odnosno da će to predviđanje imati određenu pogrešku koja nije zanemariva. Da bi uspješnije predviđali konzumaciju alkohola, vjerojatno bi bilo pametnije koristiti neki drugi matematički model, ili ući u domenu neuronskih mreža i strojnog učenja gdje bi se susreli s algoritmima koji bi ovaj zadatak odrađivali uspješnije, ali s time bi izašli iz područja ovog predmeta, te to ovdje nećemo raditi. 
-
-\newpage
-
-\subsection{Predviđanje konzumacije alkohola za 6 zemalja s nedostajućim vrijednostima za tu značajku}
-
-Dodatak samoj analizi modela linearne regresije bit će predviđanje konzumacije alkohola pomoću našeg izračunatog modela linearne regresije. S obzirom na to da za 6 zemalja za koje ćemo raditi predikciju nemamo stvarne podatke, nećemo moći provjeriti koliko je naše predviđanje zbilja točno. Osim toga, iz analize iznad vidjeli smo da model linearne regresije ne opisuje zadane podatke idealno, te da ima nezanemarivu pogrešku, što također moramo uzeti u obzir za našu predikciju.
-\newline
-Prvi korak je utvrđivanje za koje države nema podataka o konzumaciji alkohola.
-
-```{r}
-my_data <- WHR_23 %>%
-group_by(Regional.indicator) %>%
-mutate(
-Ladder.score = ifelse(is.na(Ladder.score),
-mean(Ladder.score, na.rm = TRUE), Ladder.score),
-GDP.per.capita = ifelse(is.na(GDP.per.capita),
-mean(GDP.per.capita, na.rm = TRUE), GDP.per.capita),
-Social.support = ifelse(is.na(Social.support),
-mean(Social.support, na.rm = TRUE), Social.support),
-Healthy.life.expectancy = ifelse(is.na(Healthy.life.expectancy), mean(Healthy.life.expectancy, na.rm = TRUE), Healthy.life.expectancy),
-Freedom.to.make.life.choices = ifelse(is.na(Freedom.to.make.life.choices), mean(Freedom.to.make.life.choices, na.rm = TRUE), Freedom.to.make.life.choices),
-Generosity = ifelse(is.na(Generosity), mean(Generosity, na.rm = TRUE), Generosity),
-Perceptions.of.corruption = ifelse(is.na(Perceptions.of.corruption), mean(Perceptions.of.corruption, na.rm = TRUE), Perceptions.of.corruption),
-Crime.rate.Crime.Index = ifelse(is.na(Crime.rate.Crime.Index), mean(Crime.rate.Crime.Index, na.rm = TRUE), Crime.rate.Crime.Index),
-Healthcare.Legatum.Prosperity.Index.Health.Score = ifelse(is.na(Healthcare.Legatum.Prosperity.Index.Health.Score), mean(Healthcare.Legatum.Prosperity.Index.Health.Score, na.rm = TRUE), Healthcare.Legatum.Prosperity.Index.Health.Score),
-Gini.Coefficient...World.Bank = ifelse(is.na(Gini.Coefficient...World.Bank), mean(Gini.Coefficient...World.Bank, na.rm = TRUE), Gini.Coefficient...World.Bank)
-) %>%
-ungroup()
-my_data <- my_data[, c(1,3,4,5,6,7,8,9,10,13,14,15)]
-
-t <- my_data[is.na(my_data$Alcohol.consumption.Both.Sexes..L.year.), ]
-tmp <- t[,c(1)]
-size <- dim(tmp)
-cat("Broj redaka:", size[1], "\n")
-head(tmp, 6)
-```
-\newpage
-Sljedeći korak je napraviti predikcije za gore navedene države.
-```{r}
-coefficients <- coef(model)
-tmp <- t[,c(2,3,4,5,6,7,8,9,10,11,12)]
-preds <- predict(model, tmp)
-print(preds)
 
 ```
-Sad smo dobili predikcije za svaku od 6 država. Vidimo da od tih 6 najveću konzumaciju alkohola po glavi stanovnika ima Češka, skoro 10 litara, a najmanju Kongo (Brazaville), nešto više od 3 litre. Također, vidimo da predikcija kaže da se u Palestini popije preko 6 litara alkohola godišnje po glavi stanovnika što je više nego na Kosovu na primjer. To ne bi trebao biti istinit podatak s obzirom na vjeru stanovnika Palestine. To nam pokazuje da predikcije koje smo napravili treba uzeti s rezervom, a daljnja analiza rezultata nema pretjeranog smisla s obzirom na to da nam stvarne vrijednosti nisu poznate.
