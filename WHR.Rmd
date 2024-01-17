@@ -48,21 +48,24 @@ for (col_name in names(WHR_23)) {
 
 \section{3. Postoje li razlike u kvaliteti zdravstvene skrbi među različitim regijama?}
 Prvo je potrebno provjeriti jesu li podatci normalno distibuirani. To ćemo napraviti analitički i grafički. Analitičku provjeru čini Kolmogorov-Smirnov test. Postavljamo hipoteze: 
+
 H0: podatci su normalno distribuirani 
+
 H1: podatci nisu normalno distribuirani
 
 Prisjetimo se, varijabla "Healthcare.Legatum.Prosperity.Index.Health.Score" ima dvije nedostajuće vrijednosti. Jedan od načina na koji se to može riješiti je da svedemo nedostajuće vrijednosti na srednju vrijednost te varijable za pripadnu regiju. U ovom slučaju ne možemo raditi takvu procjenu zato što pitanje kojim se bavimo ovisi o regijama. Nedostajuće vrijednosti su za Kosovo i Palestinu, države kojima to nije jedini nedostajući podatak. Prema tome, jednostavno ćemo te dvije države ukloniti iz daljnje procjene zdravstvene skrbi.
 
 ```{r}
 data3 <- WHR_23[!is.na(WHR_23$Healthcare.Legatum.Prosperity.Index.Health.Score), ]
-
-regions <- unique(data3$Regional.indicator)
+names(data3)[names(data3) == "Healthcare.Legatum.Prosperity.Index.Health.Score"] <- "Health.Score"
+names(data3)[names(data3) == "Regional.indicator"] <- "Region"
+regions <- unique(data3$Region)
 
 ks_results <- list()
 
 # KS test se radi za svaku regiju
 for (region in regions) {
-  data_region <- data3$Healthcare.Legatum.Prosperity.Index.Health.Score[data3$Regional.indicator == region]
+  data_region <- data3$Health.Score[data3$Region == region]
   ks_result <- ks.test(data_region, "pnorm", mean = mean(data_region), sd = sd(data_region))
   ks_results[[region]] <- ks_result
 }
@@ -72,6 +75,7 @@ for (k in names(ks_results)) {
   cat("\n")
 }
 ```
+
 Za svaku regiju dobivamo veliku p-vrijednost, što znači da ne možemo odbaciti hipotezu H0 i zaključujemo da su podatci normalno distribuirani.
 
 P-vrijednost ovisi o veličini uzorka pa ćemo se koristiti i grafičkom provjerom. Veći uzorak rezultira manjom p-vrijednošću.
@@ -79,20 +83,35 @@ P-vrijednost ovisi o veličini uzorka pa ćemo se koristiti i grafičkom provjer
 ```{r}
 library(ggplot2)
 
-#if (!requireNamespace("car", quietly = TRUE)) {
-#  install.packages("car")
-#}
-#library(car)
-
 par(mfrow = c(2, 2))  # 2 rows, 2 columns
 for (region in regions) {
-  data_region <- data3$Healthcare.Legatum.Prosperity.Index.Health.Score[data3$Regional.indicator == region]
+  data_region <- data3$Health.Score[data3$Region == region]
   qqnorm(data_region, main = paste("Q-Q Plot for", region))
   qqline(data_region, col = "red")
 }
 ```
+
 Općenito, što su podatci udaljeniji od crvene linije, to su manje normalno distribuirani. U našem slučaju se iz grafičkog prikaza može vidjeti da se uglavnom radi o normalnoj distribuciji, osim nekih stršećih vrijednosti.
 
-```{r}
 
+```{r}
+model <- aov(Health.Score ~ Region, data = data3)
+summary(model)
+TukeyHSD(model)
+with(par(mai=c(0.5,2.5,0.5,1)),{plot(TukeyHSD(model), las=1,cex.axis=0.4)})
 ```
+
+Stupac "diff" pokazuje razliku u srednjoj vrijednosti između dvije promatrane grupe, dok su "lwr" i "upr" granice intervala pouzdanosti. Gledamo p-vrijednosti Tukey HSD testa. Ako je p-vrijednost manja od 0.05, imamo par grupa koje se statistički značajno razlikuju. 
+
+Ako gledamo samo Europu, jednu grupu čini zapadni dio, dok drugu grupu čine centralni i istočni dio. 
+Razlika srednjih vrijednosti iznosi 5.86, što se ne čini puno, ali se pokazalo statistički značajno s p-vrijednošću 0.016. 
+
+Unutar same Azije postoje velike razlike razvijenosti zdravstva, s istočnom Azijom koja je značajno bolja od južne Azije. 
+U istočnoj Aziji indeks razvijenosti zdravstva iznosi više od 80, s iznimkom Mongolije čiji je indeks 66.74.
+
+Najmanje zdravstveno razvijena pokazala se regija Sub-Saharan Africa čiji rezultati odskaču od svih ostalih regija. 
+Najviše odstupa od istočne Azije s razlikom srednjih vrijednosti 24.86 i zapadne Europe s razlikom 24.49. 
+
+Najbolje zdravstveno razvijene regije su istočna Azija i zapadna Europa, te odmah uz njih Sjeverna Amerika, Australija i Novi Zeland.
+
+
