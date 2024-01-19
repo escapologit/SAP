@@ -46,56 +46,6 @@ for (col_name in names(WHR_23)) {
 }
 ```
 
-# Vizualizacija podataka
-
-Za usporedbu razine sreće u publikaciji iz 2022. i 2023. godine možemo uzeti presjek zajedničkih država. To nas ostavlja s podatcima za 133 države.
-
-```{r pressure, echo=FALSE}
-WHR_22$Country <- gsub("\\*", "", WHR_22$Country)
-presjek_drzava = merge(WHR_23, WHR_22, by.x = "Country.name", by.y = "Country")[c("Country.name", "Happiness.score", "Ladder.score")]
-colnames(presjek_drzava) = c("Country", "2022", "2023")
-# View(presjek_drzava)
-
-library(ggplot2)
-library(reshape2)
-
-df_long <- melt(presjek_drzava, id.var = "Country")
-
-ggplot(df_long, aes(x = Country, y = value, color = variable)) + 
-  geom_line(aes(group = variable)) + 
-  labs(title = "Happiness Score 2022 vs. 2023",
-       y = "Happiness Score", 
-       color = "Year") + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 4))
-```
-```{r}
-library(dplyr)
-# grupiranje po regijama radi preglednije vizualizacije
-presjek_drzava = merge(WHR_23, WHR_22, by.x = "Country.name", by.y = "Country")[c("Country.name", "Regional.indicator", "Happiness.score", "Ladder.score")]
-colnames(presjek_drzava) = c("Country", "Region", "2022", "2023")
-grouped_by_regions <- presjek_drzava %>%
-  group_by(Region) %>% 
-  group_split()
-
-num_of_regions = 10
-for (i in 1:10) {
-  region = levels(grouped_by_regions[[i]]$Region)[i]
-  title = paste("Happiness Score 2022 vs. 2023 for", region)
-  data = grouped_by_regions[[i]][c("Country", "2022", "2023")]
-  df_long <- melt(data, id.var = "Country")
-
-  line_plot = ggplot(df_long, aes(x = Country, y = value, color = variable)) + 
-  geom_line(aes(group = variable)) + 
-  geom_point() + 
-  labs(title = title,
-       y = "Happiness Score", 
-       color = "Year") + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-  print(line_plot)
-}
-
-```
 Sljedeće što možemo napraviti je izračunati korelaciju između varijabli. Možemo izabrati i ispisati korelaciju između svakog para varijabli, ali takav ispis bi bio nepraktičan, a nije nam ni potreban. Stoga ćemo ispisati samo korelaciju svih varijabli s varijablom koja prikazuju indeks sreće u pojedinoj državi.
 
 ```{r}
@@ -104,11 +54,9 @@ matrix = round(cor(my_data, use = "complete.obs"),2)
 corrs <- matrix[, 1]
 names <- colnames(matrix)
 var = names[1]
-
 df <- data.frame(Variable = colnames(matrix)[-1], Correlation = corrs[-1])
 last12 <- tail(df,12)
 cat(sprintf("%s %.2f\n", last12$Variable, last12$Correlation))
-
 ```
 \section{2. Možemo li temeljem drugih dostupnih varijabli predvidjeti konzumaciju alkohola po zemljama?}
 
@@ -121,9 +69,8 @@ head(my_data$Gini.Coefficient...World.Bank, 10)
 Problem na koji nalazimo su nedostajuće vrijednosti u našem skupu podataka. Na primjer, za značajku Gini Coefficient na desetoj poziciji u tablici imamo NA. Ono što ćemo napraviti je zamjena nedostajućih vrijednosti među nezavisnim varijablama prosječnom vrijednošću za tu regiju. Naravno, to nije jedini način na koji se možemo nositi s nedostajućim vrijednostima. Na primjer, možemo u potpunosti izbaciti te zapise, ali u tom slučaju gubimo previše podataka pa nam to nije opcija. Sljedeća opcija bi nam bila zamjena s ukupnim prosjekom, no procijenili smo da je zamjena prosjekom regije ipak točnija. Dakle, sad ćemo napraviti zamjenu nedostajućih podataka.
 
 ```{r}
-install.packages("dplyr")
+if(!require(dplyr)) install.packages("dplyr",repos = "http://cran.us.r-project.org")
 library(dplyr)
-
 my_data <- WHR_23 %>%
   group_by(Regional.indicator) %>%
   mutate(
@@ -155,7 +102,6 @@ Nakon što smo napravili zamjenu nedostajućih vrijednosti u nezavisnim varijabl
 ```{r}
 new <- my_data[!is.na(my_data$Alcohol.consumption.Both.Sexes..L.year.), ]
 size <- dim(new)
-
 cat("Broj redaka:", size[1], "\n")
 ```
 Sljedeći korak je provođenje linearne regresije.
@@ -169,7 +115,6 @@ model <- lm(Alcohol.consumption.Both.Sexes..L.year. ~ Ladder.score + GDP.per.cap
               Healthcare.Legatum.Prosperity.Index.Health.Score +
               Gini.Coefficient...World.Bank,
             data = new)
-
 summary(model)
 coefplot(model)
 ```
@@ -186,7 +131,6 @@ Prilagođeni $R^2$ je verzija mjere $R^2$ koja kažnjava velik broj parametara t
 \newline
 Vrijednost F statistike iznosi 9.069, a p-vrijednost je 5.119$e^{-11}$ što je jako mala vrijednost. Interpretacija te vrijednosti je sljedeća: ona testira nultu hipotezu da su svi koeficijenti u modelu jednaki 0, odnosno da niti jedna od nezavisnih varijabli nije korisna za predikciju zavisne varijable. S obzirom da je p-vrijednost iznimno mala, definitvno možemo odbaciti nultu hipotezu te zaključiti da je barem jedna nezavisna varijabla korisna za predikciju.
 ```{r}
-
 plot(model, which = 1)
 ```
 Ono što želimo ispitati grafom iznad je pretpostavka da reziduali imaju konstantnu varijancu za bilo koji ulaz u model. Da bi donijeli zaključak o toj pretpostavci, moramo pogledati graf iznad. Naime, ako su reziduali otprilike distribuirani u okolini osi apscisa bez nekog jasnog uzorka, možemo zaključiti da je naša pretpostavka točna. Iz grafa vidimo da u našem modelu to je slučaj, reziduali su distribuirani otprilike jednako iznad i ispod osi apscisa te ne možemo utvrditi neki specifičan uzorak među njima. Iz toga slijedi da je naša prvotna pretpostavka bila točna.
@@ -225,7 +169,6 @@ Gini.Coefficient...World.Bank = ifelse(is.na(Gini.Coefficient...World.Bank), mea
 ) %>%
 ungroup()
 my_data <- my_data[, c(1,3,4,5,6,7,8,9,10,13,14,15)]
-
 t <- my_data[is.na(my_data$Alcohol.consumption.Both.Sexes..L.year.), ]
 tmp <- t[,c(1)]
 size <- dim(tmp)
@@ -239,6 +182,103 @@ coefficients <- coef(model)
 tmp <- t[,c(2,3,4,5,6,7,8,9,10,11,12)]
 preds <- predict(model, tmp)
 print(preds)
-
 ```
 Sad smo dobili predikcije za svaku od 6 država. Vidimo da od tih 6 najveću konzumaciju alkohola po glavi stanovnika ima Češka, skoro 10 litara, a najmanju Kongo (Brazaville), nešto više od 3 litre. Također, vidimo da predikcija kaže da se u Palestini popije preko 6 litara alkohola godišnje po glavi stanovnika što je više nego na Kosovu na primjer. To ne bi trebao biti istinit podatak s obzirom na vjeru stanovnika Palestine. To nam pokazuje da predikcije koje smo napravili treba uzeti s rezervom, a daljnja analiza rezultata nema pretjeranog smisla s obzirom na to da nam stvarne vrijednosti nisu poznate.
+
+\section{3. Postoje li razlike u kvaliteti zdravstvene skrbi među različitim regijama?}
+Prvo je potrebno provjeriti jesu li podatci normalno distibuirani. To ćemo napraviti analitički i grafički. Analitičku provjeru čini Kolmogorov-Smirnov test. Postavljamo hipoteze: 
+
+H0: podatci su normalno distribuirani 
+
+H1: podatci nisu normalno distribuirani
+
+Prisjetimo se, varijabla "Healthcare.Legatum.Prosperity.Index.Health.Score" ima dvije nedostajuće vrijednosti. Jedan od načina na koji se to može riješiti je da svedemo nedostajuće vrijednosti na srednju vrijednost te varijable za pripadnu regiju. U ovom slučaju ne možemo raditi takvu procjenu zato što pitanje kojim se bavimo ovisi o regijama. Nedostajuće vrijednosti su za Kosovo i Palestinu, države kojima to nije jedini nedostajući podatak. Prema tome, jednostavno ćemo te dvije države ukloniti iz daljnje procjene zdravstvene skrbi.
+
+```{r}
+data3 <- WHR_23[!is.na(WHR_23$Healthcare.Legatum.Prosperity.Index.Health.Score), ]
+names(data3)[names(data3) == "Healthcare.Legatum.Prosperity.Index.Health.Score"] <- "Health.Score"
+names(data3)[names(data3) == "Regional.indicator"] <- "Region"
+regions <- unique(data3$Region)
+
+ks_results <- list()
+
+# KS test se radi za svaku regiju
+for (region in regions) {
+  data_region <- data3$Health.Score[data3$Region == region]
+  ks_result <- ks.test(data_region, "pnorm", mean = mean(data_region), sd = sd(data_region))
+  ks_results[[region]] <- ks_result
+}
+for (k in names(ks_results)) {
+  cat(k, ":\n")
+  print(ks_results[[k]])
+  cat("\n")
+}
+```
+
+Za svaku regiju dobivamo veliku p-vrijednost, što znači da ne možemo odbaciti hipotezu H0 i zaključujemo da su podatci normalno distribuirani.
+
+P-vrijednost ovisi o veličini uzorka pa ćemo se koristiti i grafičkom provjerom. Veći uzorak rezultira manjom p-vrijednošću.
+
+```{r}
+library(ggplot2)
+
+par(mfrow = c(2, 2))  # 2 rows, 2 columns
+for (region in regions) {
+  data_region <- data3$Health.Score[data3$Region == region]
+  qqnorm(data_region, main = paste("Q-Q Plot for", region), cex.main=0.9, cex.lab=0.8)
+  qqline(data_region, col = "red")
+}
+```
+
+Općenito, što su podatci udaljeniji od crvene linije, to su manje normalno distribuirani. U našem slučaju se iz grafičkog prikaza može vidjeti da se uglavnom radi o normalnoj distribuciji, osim nekih stršećih vrijednosti.
+
+Nakon što smo zaključili da su podaci normalno distribuirani, mogli smo provesti test koji će dati odgovor na postavljeno pitanje - ANOVA test, odnosno test analize varijance.
+To je statistički test koji procjenjuje tako što traži ima li  značajne razlike u varijabilnosti srednjih vrijednosti. Ovaj test je pogodan jer imamo više od dvije regije za koje trebamo provjeriti razliku u zavisnoj varijabli - kvaliteti zdravstvene skrbi. U rezultatima testa gledamo p-vrijednost te F-statistiku.F- statistika zapravo nam govori kolika je razlika u srednjim vrijednostima regija. Dakle, ako je F-vrijednost niska, te razlike nisu statistički bitne, dok u obrnutom slučaju znači da postoji bitna razlika između skupina, odnosno, regija. Što se tiče p-vrijendosti, moramo gledati kako se odnosi s obzirom na našu odabranu razinu značajnosti. Ako je manja od značajnosti, odbacuje se nulta hipoteza, a to znači da postoje bitne razlike između nekih skupina.
+
+Hipoteze:
+
+H0: srednje vrijednosti regija su jednake
+
+H1: barem neka srednja vrijednost regije se razlikuje od ostalih
+
+
+```{r}
+model <- aov(Health.Score ~ Region, data = data3)
+summary(model)
+```
+
+Dakle, p-vrijednost je < 2e-16 što se može pročitati iz sažetka testa prikazanog gore (Pr(>F)), a to je manje od naše razine značajnosti (0.05) te možemo odbaciti nultu hipotezu. 
+Isto tako, vidimo da je F vrijednost dosta velika.
+
+Kako bi bolje dočarali rezultate testa, odlučili smo se za vizualizaciju box plot dijagramom.
+
+```{r}
+boxplot(Health.Score ~ Region, data = data3, col = "lightblue", 
+        main = "Boxplot", las = 2, cex.axis=0.5)
+```
+
+Ovaj graf dobro vizualizira razlike u zdravstvenoj skrbi prema regijama. Možemo primijetiti kako najslabiji indeks zdravstvene skrbi ima subsaharska Afrika dok najbolji indeks ima istočna Azija. 
+
+Sada kada znamo da razlike u zdravstvenoj skrbi između regija postoje, možemo napraviti TukeyHSD test koji će nam detaljnije objasniti te razlike.
+
+```{r}
+tukey <- TukeyHSD(model)
+tukey_table<-as.data.frame((tukey)[1])
+write.csv(tukey_table, 'TK_data.csv')
+with(par(mai=c(0.5,2.5,0.5,1)),{plot(tukey, las=1,cex.axis=0.4)})
+```
+
+Tukey HSD test nam daje vrijednosti "diff", koja pokazuje razliku u srednjoj vrijednosti između dvije promatrane grupe, "lwr" i "upr" koji predstavljaju granice intervala pouzdanosti, te p-vrijednost. Ako je p-vrijednost manja od 0.05, imamo par grupa koje se statistički značajno razlikuju. 
+
+Ako gledamo samo Europu, jednu grupu čini zapadni dio, dok drugu grupu čine centralni i istočni dio. 
+Razlika srednjih vrijednosti iznosi 5.86, što se ne čini puno, ali se pokazalo statistički značajno s p-vrijednošću 0.016. 
+
+Unutar same Azije postoje velike razlike razvijenosti zdravstva, s istočnom Azijom koja je značajno bolja od južne Azije. 
+U istočnoj Aziji indeks razvijenosti zdravstva iznosi više od 80, s iznimkom Mongolije čiji je indeks 66.74.
+
+Najmanje zdravstveno razvijena pokazala se regija subsaharska Afrika čiji rezultati odskaču od svih ostalih regija. 
+Najviše odstupa od istočne Azije s razlikom srednjih vrijednosti 24.86 i zapadne Europe s razlikom 24.49. 
+
+Najbolje zdravstveno razvijene regije su istočna Azija i zapadna Europa, te odmah uz njih Sjeverna Amerika, Australija i Novi Zeland.
+
+
