@@ -86,22 +86,50 @@ library(ggplot2)
 par(mfrow = c(2, 2))  # 2 rows, 2 columns
 for (region in regions) {
   data_region <- data3$Health.Score[data3$Region == region]
-  qqnorm(data_region, main = paste("Q-Q Plot for", region))
+  qqnorm(data_region, main = paste("Q-Q Plot for", region), cex.main=0.9, cex.lab=0.8)
   qqline(data_region, col = "red")
 }
 ```
 
 Općenito, što su podatci udaljeniji od crvene linije, to su manje normalno distribuirani. U našem slučaju se iz grafičkog prikaza može vidjeti da se uglavnom radi o normalnoj distribuciji, osim nekih stršećih vrijednosti.
 
+Nakon što smo zaključili da su podaci normalno distribuirani, mogli smo provesti test koji će dati odgovor na postavljeno pitanje - ANOVA test, odnosno test analize varijance.
+To je statistički test koji procjenjuje tako što traži ima li  značajne razlike u varijabilnosti srednjih vrijednosti. Ovaj test je pogodan jer imamo više od dvije regije za koje trebamo provjeriti razliku u zavisnoj varijabli - kvaliteti zdravstvene skrbi. U rezultatima testa gledamo p-vrijednost te F-statistiku.F- statistika zapravo nam govori kolika je razlika u srednjim vrijednostima regija. Dakle, ako je F-vrijednost niska, te razlike nisu statistički bitne, dok u obrnutom slučaju znači da postoji bitna razlika između skupina, odnosno, regija. Što se tiče p-vrijendosti, moramo gledati kako se odnosi s obzirom na našu odabranu razinu značajnosti. Ako je manja od značajnosti, odbacuje se nulta hipoteza, a to znači da postoje bitne razlike između nekih skupina.
+
+Hipoteze:
+
+H0: srednje vrijednosti regija su jednake
+
+H1: barem neka srednja vrijednost regije se razlikuje od ostalih
+
 
 ```{r}
 model <- aov(Health.Score ~ Region, data = data3)
 summary(model)
-TukeyHSD(model)
-with(par(mai=c(0.5,2.5,0.5,1)),{plot(TukeyHSD(model), las=1,cex.axis=0.4)})
 ```
 
-Stupac "diff" pokazuje razliku u srednjoj vrijednosti između dvije promatrane grupe, dok su "lwr" i "upr" granice intervala pouzdanosti. Gledamo p-vrijednosti Tukey HSD testa. Ako je p-vrijednost manja od 0.05, imamo par grupa koje se statistički značajno razlikuju. 
+Dakle, p-vrijednost je < 2e-16 što se može pročitati iz sažetka testa prikazanog gore (Pr(>F)), a to je manje od naše razine značajnosti (0.05) te možemo odbaciti nultu hipotezu. 
+Isto tako, vidimo da je F vrijednost dosta velika.
+
+Kako bi bolje dočarali rezultate testa, odlučili smo se za vizualizaciju box plot dijagramom.
+
+```{r}
+boxplot(Health.Score ~ Region, data = data3, col = "lightblue", 
+        main = "Boxplot", las = 2, cex.axis=0.5)
+```
+
+Ovaj graf dobro vizualizira razlike u zdravstvenoj skrbi prema regijama. Možemo primijetiti kako najslabiji indeks zdravstvene skrbi ima subsaharska Afrika dok najbolji indeks ima istočna Azija. 
+
+Sada kada znamo da razlike u zdravstvenoj skrbi između regija postoje, možemo napraviti TukeyHSD test koji će nam detaljnije objasniti te razlike.
+
+```{r}
+tukey <- TukeyHSD(model)
+tukey_table<-as.data.frame((tukey)[1])
+write.csv(tukey_table, 'TK_data.csv')
+with(par(mai=c(0.5,2.5,0.5,1)),{plot(tukey, las=1,cex.axis=0.4)})
+```
+
+Tukey HSD test nam daje vrijednosti "diff", koja pokazuje razliku u srednjoj vrijednosti između dvije promatrane grupe, "lwr" i "upr" koji predstavljaju granice intervala pouzdanosti, te p-vrijednost. Ako je p-vrijednost manja od 0.05, imamo par grupa koje se statistički značajno razlikuju. 
 
 Ako gledamo samo Europu, jednu grupu čini zapadni dio, dok drugu grupu čine centralni i istočni dio. 
 Razlika srednjih vrijednosti iznosi 5.86, što se ne čini puno, ali se pokazalo statistički značajno s p-vrijednošću 0.016. 
@@ -109,7 +137,7 @@ Razlika srednjih vrijednosti iznosi 5.86, što se ne čini puno, ali se pokazalo
 Unutar same Azije postoje velike razlike razvijenosti zdravstva, s istočnom Azijom koja je značajno bolja od južne Azije. 
 U istočnoj Aziji indeks razvijenosti zdravstva iznosi više od 80, s iznimkom Mongolije čiji je indeks 66.74.
 
-Najmanje zdravstveno razvijena pokazala se regija Sub-Saharan Africa čiji rezultati odskaču od svih ostalih regija. 
+Najmanje zdravstveno razvijena pokazala se regija subsaharska Afrika čiji rezultati odskaču od svih ostalih regija. 
 Najviše odstupa od istočne Azije s razlikom srednjih vrijednosti 24.86 i zapadne Europe s razlikom 24.49. 
 
 Najbolje zdravstveno razvijene regije su istočna Azija i zapadna Europa, te odmah uz njih Sjeverna Amerika, Australija i Novi Zeland.
