@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Uvod
 
-*dodati opis naseg zadatka
+S obzirom na turbolentna događanja u svijetu i razne faktore koji se isprepleću u našoj svakodnevici, postavlja se pitanje koliko je sretan prosječan čovjek i što to utječe na sreću. Mreža rješenja za održivi razvoj Ujedinjenih naroda napravila je istraživanje pod imenom World Happiness Report u kojem mjeri razinu sreće, stopu konzumacije alkohola, stopu kriminala itd. po svim zemljama svijeta. U ovom smo projektu odlučili proučiti dostupne podatke kako bismo odredili je li svjetska populacija generalno bila sretnija u 2023. nego li u 2022. godini, kako koreliraju razni faktori sa stopom konzumacije alkohola te smo analizirali kvalitetu zdravstvene skrbi po regijama svijeta. Kako bismo donijeli zaključke na temelju dobivenih podataka problemu smo pristupili koristeći razne statističke metode.
 
 # Deskriptivna analiza
 
@@ -58,6 +58,80 @@ df <- data.frame(Variable = colnames(matrix)[-1], Correlation = corrs[-1])
 last12 <- tail(df,12)
 cat(sprintf("%s %.2f\n", last12$Variable, last12$Correlation))
 ```
+\section{1. Je li razina sreće u publikaciji za 2023. veća ili manja u usporedbi s istraživanjem provedenim godinu ranije?}
+
+S obzirom na dostupne podatke zanima nas postaju li ljudi sretniji ili nesretniji. Kako bismo odgovorili na to pitanje usporedit ćemo razine sreće u publikaciji iz 2022. i 2023. godine. Budući da nisu dostupni podaci za sve zemlje u obje godine, možemo uzeti presjek zajedničkih država. To nas ostavlja s podatcima za 133 države.
+
+```{r pressure, echo=FALSE}
+#Dohvaćanje presjeka država te podataka iz svake godine isključivo za te zemlje.
+
+WHR_22$Country <- gsub("\\*", "", WHR_22$Country)
+presjek_drzava = merge(WHR_23, WHR_22, by.x = "Country.name", by.y = "Country")[c("Country.name", "Happiness.score", "Ladder.score")]
+colnames(presjek_drzava) = c("Country", "2022", "2023")
+# View(presjek_drzava)
+
+# Filtriranje podataka samo za države koje su u presjeku
+podaci_presjek <- presjek_drzava[c("Country", "2022", "2023")]
+
+# Dohvaćanje podataka o Ladder.score za godinu 2022.
+ladder_score_2022 <- podaci_presjek$'2022'
+
+# Dohvaćanje podataka o Ladder.score za godinu 2023.
+ladder_score_2023 <- podaci_presjek$'2023'
+
+#print(ladder_score_2022)
+#print(ladder_score_2023)
+```
+
+Fokusirajmo se na globalnu sliku razina sreće, odnosno po svim zemljama
+
+Postavimo nul-hipotezu (H0) koja tvrdi da je razina sreće u 2023. godini manja ili jednaka onoj izmjerenoj u prethodnoj godini. Alternativna hipoteza (H1) tvrdi kako je izmjerena razina sreće u 2023. godini veća nego li ona izmjerena u prethodnoj godini.
+
+Kako bismo testirali točnost nul-hipoteze koristit ćemo t-test. Međutim, prije nego što počnemo s testiranjem, moramo utvrditi da su podaci normalni, odnosno da pripadaju normalnoj razdiobi. Provest ćemo Shapiro-Wilk test pri čemu biramo da vrijedi $\alpha$ = .05. Ako izračunata p vrijednost bude veća od zadanog $\alpha$, podaci pripadaju normalnoj razdiobi.Također možemo pogledati i Q-Q graf podataka kako bismo potvrdili normalnost. U tom grafu razmatramo hoće li naši podaci formirati pravac uz potencijalna manja odstupanja. Ako to bude slučaj, podatke možemo smatrati normalnima.
+
+```{r}
+shapiro.test(ladder_score_2022)
+
+#data:  ladder_score_2022
+#W = 0.98742, p-value = 0.2656
+
+#Q-Q graf
+par(mfrow=c(1,2)) 
+qqnorm(ladder_score_2022, main='Razina sreće 2022')
+qqline(ladder_score_2022)
+
+shapiro.test(ladder_score_2023)
+
+#data:  ladder_score_2023
+#W = 0.98047, p-value = 0.0529
+
+par(mfrow=c(1,2)) 
+qqnorm(ladder_score_2023, main='Razina sreće 2023')
+qqline(ladder_score_2023)
+```
+Rezultati pokazuju da su podaci iz 2022. godine normalno distribuirano s obzirom na Q-Q graf koji formira pravac te vrijednost p = 0.2656 > $\alpha$. Slično pokazuju i podaci za 2023. godinu, iako je p vrijednost puno bliža granici normalnosti. Moguće je napraviti transformaciju podataka tako budu normalnije distribuirani, ali nije nužno jer podaci nisu upali u kritično područje. 
+
+Napokon možemo provesti t-test nad podacima kako bismo utvrdili točnost početne hipoteze. Neka vrijedi da je razine značajnosti $\alpha$ = 0.05. S obzirom da proučavamo iste testne grupe po istim kategorijama, samo u nekom vremenskom razmaku, testne su skupine zavisne, odnosno uparene Stoga biramo upareni t-test .
+
+```{r}
+rezultat_t_testa <- t.test(ladder_score_2023, ladder_score_2022, paired = TRUE, alternative = "greater")
+print(rezultat_t_testa)
+
+#Paired t-test
+
+#data:  ladder_score_2023 and ladder_score_2022
+#t = -2.4778, df = 132, p-value = 0.9928
+#alternative hypothesis: true mean difference is greater than 0
+#95 percent confidence interval:
+# -0.08561081         Inf
+#sample estimates:
+#mean difference 
+    -0.05130901 
+
+```
+
+Rezultati testa ukazuju da ne odbacujemo nultu hipotezu (H0) na temelju p-vrijednosti koja je iznimno visoka. P-vrijednost izražava vjerovatnost dobivanja rezultata sličnih ili ekstremnijih od onih koje biste dobili ako je nulta hipoteza istinita. U našem slučaju p-vrijednost iznosi 0.9928 te je veća od standardne razine značajnosti od 0.05. Dakle, nemamo dovoljno statističkih dokaza da podržimo tvrdnju da je razina sreće u 2023. godini veća od razine sreće u 2022. godini.
+
 \section{2. Možemo li temeljem drugih dostupnih varijabli predvidjeti konzumaciju alkohola po zemljama?}
 
 S obzirom na to da pitanje traži predikciju konzumacije alkohola po zemljama, alat koji ćemo koristiti za to je linearna regresija. Nezavisne varijable će u tom slučaju biti sve one koje nisu vezane za alkohol, a varijabla koju predviđamo će biti konzumacija alkohola za oba spola. Uz to, iz skupa nezavisnih varijabli nećemo koristiti varijable koje pokazuju konzumaciju alkohola posebno za muškarce i žene. Iz toga slijedi da ćemo imati 12 nezavisnih varijabli i jednu nezavisnu. 
