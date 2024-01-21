@@ -2,7 +2,10 @@
 title: "World Happiness Report 2023"
 author: "Mia Gmiza, Gabrijela Perković, Matija Roginić, Erika Tomakić"
 date: "2023-12-06"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -111,7 +114,7 @@ qqline(ladder_score_2023)
 ```
 Rezultati pokazuju da su podaci iz 2022. godine normalno distribuirano s obzirom na Q-Q graf koji formira pravac te vrijednost p = 0.2656 > $\alpha$. Slično pokazuju i podaci za 2023. godinu, iako je p vrijednost puno bliža granici normalnosti. Moguće je napraviti transformaciju podataka tako budu normalnije distribuirani, ali nije nužno jer podaci nisu upali u kritično područje. 
 
-Napokon možemo provesti t-test nad podacima kako bismo utvrdili točnost početne hipoteze. Neka vrijedi da je razine značajnosti $\alpha$ = 0.05. S obzirom da proučavamo iste testne grupe po istim kategorijama, samo u nekom vremenskom razmaku, testne su skupine zavisne, odnosno uparene Stoga biramo upareni t-test .
+Napokon možemo provesti t-test nad podacima kako bismo utvrdili točnost početne hipoteze. Neka vrijedi da je razine značajnosti $\alpha$ = 0.05. S obzirom da proučavamo iste testne grupe po istim kategorijama, samo u nekom vremenskom razmaku, testne su skupine zavisne, odnosno uparene.Stoga biramo upareni t-test.
 
 ```{r}
 rezultat_t_testa <- t.test(ladder_score_2023, ladder_score_2022, paired = TRUE, alternative = "greater")
@@ -154,11 +157,14 @@ my_data <- WHR_23 %>%
                   mean(GDP.per.capita, na.rm = TRUE), GDP.per.capita),
     Social.support = ifelse(is.na(Social.support), 
                   mean(Social.support, na.rm = TRUE), Social.support),
-    Healthy.life.expectancy = ifelse(is.na(Healthy.life.expectancy), mean(Healthy.life.expectancy, na.rm = TRUE), Healthy.life.expectancy),
+    Healthy.life.expectancy = ifelse(is.na(Healthy.life.expectancy), 
+                  mean(Healthy.life.expectancy, na.rm = TRUE), Healthy.life.expectancy),
     Freedom.to.make.life.choices = ifelse(is.na(Freedom.to.make.life.choices), mean(Freedom.to.make.life.choices, na.rm = TRUE), Freedom.to.make.life.choices),
     Generosity = ifelse(is.na(Generosity), mean(Generosity, na.rm = TRUE), Generosity),
-    Perceptions.of.corruption = ifelse(is.na(Perceptions.of.corruption), mean(Perceptions.of.corruption, na.rm = TRUE), Perceptions.of.corruption),
-    Crime.rate.Crime.Index = ifelse(is.na(Crime.rate.Crime.Index), mean(Crime.rate.Crime.Index, na.rm = TRUE), Crime.rate.Crime.Index),
+    Perceptions.of.corruption = ifelse(is.na(Perceptions.of.corruption), 
+    mean(Perceptions.of.corruption, na.rm = TRUE), Perceptions.of.corruption),
+    Crime.rate.Crime.Index = ifelse(is.na(Crime.rate.Crime.Index), 
+    mean(Crime.rate.Crime.Index, na.rm = TRUE), Crime.rate.Crime.Index),
     Healthcare.Legatum.Prosperity.Index.Health.Score = ifelse(is.na(Healthcare.Legatum.Prosperity.Index.Health.Score), mean(Healthcare.Legatum.Prosperity.Index.Health.Score, na.rm = TRUE), Healthcare.Legatum.Prosperity.Index.Health.Score),
     Gini.Coefficient...World.Bank = ifelse(is.na(Gini.Coefficient...World.Bank), mean(Gini.Coefficient...World.Bank, na.rm = TRUE), Gini.Coefficient...World.Bank)
   ) %>%
@@ -194,7 +200,7 @@ coefplot(model)
 ```
 Sažetak linearnog modela kojeg nam je kao izlaz dao RStudio nam otkriva pojedinosti o koeficijentima uz regresore, statističkoj važnosti pojedinog regresora, te ostalim mjerama po kojima možemo vidjeti koliko se dobro model prilagođava podacima.
 \newline 
-Prvi dio analize će je analiza koeficijenata uz regresore. Vrijednost koeficijenta nam govori o tome koliko promjena u vrijednosti regresora utječe na promjennu izlaza. T vrijednost za svaki regresor opisuje statističku važnost pojedinog regresora. S obzirom na oblik t-distribucije, možemo reći da regresor ima veći statistički značaj ako je njegova vrijednost po iznosu veća. Iz prikazanog sažetka, zaključujemo da regresor Social support ima najveći statistički značaj, te da je statistički značajan i pri p-vrijednosti 0.001, a zatim GDP per capita te Healthcare legatum prosperity index health score koji su statistički značajni pri p-vrijednosti 0.05. \newline 
+Prvi dio analize je analiza koeficijenata uz regresore. Vrijednost koeficijenta nam govori o tome koliko promjena u vrijednosti regresora utječe na promjenu izlaza. T-vrijednost za svaki regresor opisuje statističku važnost pojedinog regresora. S obzirom na oblik t-distribucije, možemo reći da regresor ima veći statistički značaj ako je njegova vrijednost po iznosu veća. Iz prikazanog sažetka, zaključujemo da regresor Social support ima najveći statistički značaj, te da je statistički značajan i pri p-vrijednosti 0.001, a zatim GDP per capita te Healthcare legatum prosperity index health score koji su statistički značajni pri p-vrijednosti 0.05. \newline 
 Naravno, bitno je gledati i predznak vrijednosti koeficijenta. Iz toga možemo zaključiti da npr. povećanje vrijednosti regresora GDP per capita rezultira povećanjem konzumacije alkohola u zemlji. Suprotno, povećanje vrijednosti regresora Healthcare legatum prosperity index health score rezultira smanjenjem konzumacije alkohola u zemlji.
 \newline
 Vrijednost standardne pogreške reziduala iznosi 3.239 pri 120 stupnjeva slobode. Ta vrijednost nam opisuje standardnu devijaciju reziduala u našem modelu te se izračunava na sljedeći način: $\sqrt{\sum \frac{{(y - \hat{y})^2}}{{df}}}$. U toj formuli, y je prava vrijednost varijable koju predviđamo, $\hat{y}$ je predviđena vrijednost, a df je stupanj slobode koji iznosi broj zapisa u našoj tablici - broj regresora (131-11) = 120. Naravno, cilj je imati što manju vrijednost standardne pogreške reziduala jer to znači da model uspješnije predviđa konzumaciju alkohola uz pomoć ostalih podataka.
@@ -233,11 +239,14 @@ GDP.per.capita = ifelse(is.na(GDP.per.capita),
 mean(GDP.per.capita, na.rm = TRUE), GDP.per.capita),
 Social.support = ifelse(is.na(Social.support),
 mean(Social.support, na.rm = TRUE), Social.support),
-Healthy.life.expectancy = ifelse(is.na(Healthy.life.expectancy), mean(Healthy.life.expectancy, na.rm = TRUE), Healthy.life.expectancy),
+Healthy.life.expectancy = ifelse(is.na(Healthy.life.expectancy), 
+mean(Healthy.life.expectancy, na.rm = TRUE), Healthy.life.expectancy),
 Freedom.to.make.life.choices = ifelse(is.na(Freedom.to.make.life.choices), mean(Freedom.to.make.life.choices, na.rm = TRUE), Freedom.to.make.life.choices),
 Generosity = ifelse(is.na(Generosity), mean(Generosity, na.rm = TRUE), Generosity),
-Perceptions.of.corruption = ifelse(is.na(Perceptions.of.corruption), mean(Perceptions.of.corruption, na.rm = TRUE), Perceptions.of.corruption),
-Crime.rate.Crime.Index = ifelse(is.na(Crime.rate.Crime.Index), mean(Crime.rate.Crime.Index, na.rm = TRUE), Crime.rate.Crime.Index),
+Perceptions.of.corruption = ifelse(is.na(Perceptions.of.corruption), 
+mean(Perceptions.of.corruption, na.rm = TRUE), Perceptions.of.corruption),
+Crime.rate.Crime.Index = ifelse(is.na(Crime.rate.Crime.Index), 
+mean(Crime.rate.Crime.Index, na.rm = TRUE), Crime.rate.Crime.Index),
 Healthcare.Legatum.Prosperity.Index.Health.Score = ifelse(is.na(Healthcare.Legatum.Prosperity.Index.Health.Score), mean(Healthcare.Legatum.Prosperity.Index.Health.Score, na.rm = TRUE), Healthcare.Legatum.Prosperity.Index.Health.Score),
 Gini.Coefficient...World.Bank = ifelse(is.na(Gini.Coefficient...World.Bank), mean(Gini.Coefficient...World.Bank, na.rm = TRUE), Gini.Coefficient...World.Bank)
 ) %>%
@@ -260,7 +269,7 @@ print(preds)
 Sad smo dobili predikcije za svaku od 6 država. Vidimo da od tih 6 najveću konzumaciju alkohola po glavi stanovnika ima Češka, skoro 10 litara, a najmanju Kongo (Brazaville), nešto više od 3 litre. Također, vidimo da predikcija kaže da se u Palestini popije preko 6 litara alkohola godišnje po glavi stanovnika što je više nego na Kosovu na primjer. To ne bi trebao biti istinit podatak s obzirom na vjeru stanovnika Palestine. To nam pokazuje da predikcije koje smo napravili treba uzeti s rezervom, a daljnja analiza rezultata nema pretjeranog smisla s obzirom na to da nam stvarne vrijednosti nisu poznate.
 
 \section{3. Postoje li razlike u kvaliteti zdravstvene skrbi među različitim regijama?}
-Prvo je potrebno provjeriti jesu li podatci normalno distibuirani. To ćemo napraviti analitički i grafički. Analitičku provjeru čini Kolmogorov-Smirnov test. Postavljamo hipoteze: 
+Kvaliteta zdravstvene skrbi definirana je samo u tablici za 2023. godinu. Prvo je potrebno provjeriti jesu li podatci normalno distibuirani. To ćemo napraviti analitički i grafički. Analitičku provjeru čini Kolmogorov-Smirnov test. Postavljamo hipoteze: 
 
 H0: podatci su normalno distribuirani 
 
@@ -306,10 +315,47 @@ for (region in regions) {
 
 Općenito, što su podatci udaljeniji od crvene linije, to su manje normalno distribuirani. U našem slučaju se iz grafičkog prikaza može vidjeti da se uglavnom radi o normalnoj distribuciji, osim nekih stršećih vrijednosti.
 
-Nakon što smo zaključili da su podaci normalno distribuirani, mogli smo provesti test koji će dati odgovor na postavljeno pitanje - ANOVA test, odnosno test analize varijance.
-To je statistički test koji procjenjuje tako što traži ima li  značajne razlike u varijabilnosti srednjih vrijednosti. Ovaj test je pogodan jer imamo više od dvije regije za koje trebamo provjeriti razliku u zavisnoj varijabli - kvaliteti zdravstvene skrbi. U rezultatima testa gledamo p-vrijednost te F-statistiku.F- statistika zapravo nam govori kolika je razlika u srednjim vrijednostima regija. Dakle, ako je F-vrijednost niska, te razlike nisu statistički bitne, dok u obrnutom slučaju znači da postoji bitna razlika između skupina, odnosno, regija. Što se tiče p-vrijendosti, moramo gledati kako se odnosi s obzirom na našu odabranu razinu značajnosti. Ako je manja od značajnosti, odbacuje se nulta hipoteza, a to znači da postoje bitne razlike između nekih skupina.
+Nakon što smo zaključili da su podaci normalno distribuirani, mogli smo provesti test koji će dati odgovor na postavljeno pitanje - ANOVA test, odnosno test analize varijance. Koristit ćemo jednofaktorski model uz jednu zavisnu varijablu - kvalitetu zdravstvene skrbi. Taj model možemo koristiti jer imamo podatke o državama koje imaju definiranu određenu regiju. Broj različitih regija je 10, a sama regija čini nezavisnu varijablu s 10 grupa. Test analize varijance govori da li se zavisna varijabla, odnosno kvaliteta zdravstvene skrbi, mijenja s obzirom na grupu nezavisne varijable tj. različitu regiju. Prvo ćemo grafom vizualizirati kako se prema regijama mijenja vrijednost kvalitete zdravstvene skrbi.
+```{r}
+library(ggplot2)
+column1 <- data3[,"Health.Score"]
+column2 <- data3[,"Region"]
 
-Hipoteze:
+new_table <- data.frame(
+  SampleID = 1:135,
+  Region = column2,
+  Health.Score = column1
+)
+
+graph1 <- ggplot(new_table, aes(x = SampleID, y = Health.Score, group = Region, color = Region)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Graf varijacije po regijama",
+       x = "ID",
+       y = "Healthcare Legatum Prosperity Index Health Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+print(graph1)
+```
+
+U rezultatima ANOVA testa gledat ćemo p-vrijednost te F-vrijednost. F-vrijednost nam zapravo govori kolika je razlika u srednjim vrijednostima regija, odnosno računa se kao kvocijent varijacije između srednjih vrijednosti regija i varijacije vrijednosti kvalitete zdravstvene skrbi unutar regije. Dakle, ako je F-vrijednost niska, te razlike nisu statistički bitne, dok u obrnutom slučaju znači da postoji bitna razlika između skupina, odnosno, regija. Prikazat ćemo i graf srednjih vrijednosti regija.
+
+```{r}
+mean_value <- aggregate(Health.Score ~ Region, data = data3, mean)
+
+graph2 <- ggplot(mean_value, aes(x = Region, y = Health.Score)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Srednje vrijednosti Healthcare Legatum Prosperity Index po regijama",
+       x = "Regional indicator",
+       y = "Srednja vrijednost Healthcare Legatum Prosperity Index") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(graph2)
+```
+Prema grafu se može vidjeti da razlike postoje te da bi F-vrijednost mogla biti visoka. P-vrijednost je zapravo broj koji govori koliko su razlike između regija slučajne te ćemo pomoću njega pokušati odbaciti nultu hipotezu. Dakle, moramo gledati kako se p-vrijednost odnosi s obzirom na našu odabranu razinu značajnosti. Ako je manja od značajnosti, odbacuje se nulta hipoteza, a to znači da postoje bitne razlike između nekih skupina.
+
+Hipoteze, uz razinu značajnosti 0.05:
 
 H0: srednje vrijednosti regija su jednake
 
@@ -322,18 +368,25 @@ summary(model)
 ```
 
 Dakle, p-vrijednost je < 2e-16 što se može pročitati iz sažetka testa prikazanog gore (Pr(>F)), a to je manje od naše razine značajnosti (0.05) te možemo odbaciti nultu hipotezu. 
-Isto tako, vidimo da je F vrijednost dosta velika.
+Isto tako, vidimo da je F-vrijednost dosta velika.
 
 Kako bi bolje dočarali rezultate testa, odlučili smo se za vizualizaciju box plot dijagramom.
 
 ```{r}
-boxplot(Health.Score ~ Region, data = data3, col = "lightblue", 
-        main = "Boxplot", las = 2, cex.axis=0.5)
+boxplot1 <- ggplot(new_table, aes(x = factor(Region), y = Health.Score)) +
+  geom_boxplot(fill = "skyblue", color = "blue") +
+  labs(title = "Box Plot",
+       x = "Region",
+       y = "Healthcare Legatum Prosperity Index Health Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+
+print(boxplot1)
 ```
 
 Ovaj graf dobro vizualizira razlike u zdravstvenoj skrbi prema regijama. Možemo primijetiti kako najslabiji indeks zdravstvene skrbi ima subsaharska Afrika dok najbolji indeks ima istočna Azija. 
 
-Sada kada znamo da razlike u zdravstvenoj skrbi između regija postoje, možemo napraviti TukeyHSD test koji će nam detaljnije objasniti te razlike.
+Sada kada znamo da razlike u zdravstvenoj skrbi između regija postoje, možemo napraviti TukeyHSD (post hoc) test koji će nam detaljnije objasniti te razlike.
 
 ```{r}
 tukey <- TukeyHSD(model)
